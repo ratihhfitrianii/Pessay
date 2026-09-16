@@ -1,0 +1,5 @@
+{
+  "name": "pessay",
+  "framework": "vite",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
