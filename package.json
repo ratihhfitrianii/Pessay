@@ -1,0 +1,11 @@
+{
+  "name": "pessay",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pessay — Sistem Penilaian Esai Otomatis multi-bahasa + matematika",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+.vercel/
+*.log
+coverage/
+test-results/
+playwright-report/
+.tmp-verify-*
