@@ -1,20 +1,20 @@
-import { Router } from 'express';
-import bcrypt from 'bcryptjs';
-import { z } from 'zod';
-import { pool } from '../../lib/pg';
-import { signToken } from '../../lib/jwt';
-import { AppError, asyncHandler, parseOrThrow } from '../../lib/errors';
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { pool } from "../../lib/pg";
+import { signToken } from "../../lib/jwt";
+import { AppError, asyncHandler, parseOrThrow } from "../../lib/errors";
 
 const loginSchema = z.object({
-  identifier: z.string().min(3, 'Email atau username minimal 3 karakter'),
-  password: z.string().min(1, 'Password wajib diisi'),
+  identifier: z.string().min(3, "Email atau username minimal 3 karakter"),
+  password: z.string().min(1, "Password wajib diisi"),
 });
 
 export function createAuthRouter(): Router {
   const router = Router();
 
   router.post(
-    '/login',
+    "/login",
     asyncHandler(async (req, res) => {
       const body = parseOrThrow(loginSchema, req.body);
       const { rows } = await pool.query(
@@ -40,7 +40,12 @@ export function createAuthRouter(): Router {
       assertUserFound(user, body.password);
 
       const ok = await bcrypt.compare(body.password, user.password_hash);
-      if (!ok) throw new AppError('INVALID_CREDENTIALS', 'Email atau password salah', 401);
+      if (!ok)
+        throw new AppError(
+          "INVALID_CREDENTIALS",
+          "Email atau password salah",
+          401,
+        );
 
       const token = signToken({ id: Number(user.id), role: user.role_code });
       res.json({
@@ -84,7 +89,9 @@ function assertUserFound(
   role_name: string;
   email: string;
 } {
-  if (!user) throw new AppError('INVALID_CREDENTIALS', 'Email atau password salah', 401);
-  if (!user.is_active) throw new AppError('ACCOUNT_DISABLED', 'Akun dinonaktifkan', 403);
+  if (!user)
+    throw new AppError("INVALID_CREDENTIALS", "Email atau password salah", 401);
+  if (!user.is_active)
+    throw new AppError("ACCOUNT_DISABLED", "Akun dinonaktifkan", 403);
   void password;
 }

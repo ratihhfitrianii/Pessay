@@ -1,20 +1,20 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { pool } from '../../lib/pg';
-import { requireAuth, requireRole } from '../../middleware/auth';
-import { AppError, asyncHandler, parseOrThrow } from '../../lib/errors';
+import { Router } from "express";
+import { z } from "zod";
+import { pool } from "../../lib/pg";
+import { requireAuth, requireRole } from "../../middleware/auth";
+import { AppError, asyncHandler, parseOrThrow } from "../../lib/errors";
 
 const promptSchema = z.object({
   title: z.string().min(3).max(200),
-  subject: z.enum(['bahasa', 'matematika']),
-  language: z.string().min(2).max(30).default('id'),
+  subject: z.enum(["bahasa", "matematika"]),
+  language: z.string().min(2).max(30).default("id"),
   instructions: z.string().min(5).max(5000),
   rubric: z
     .array(
       z.object({
         name: z.string().min(1).max(60),
         max: z.number().int().min(1).max(1000),
-        description: z.string().max(500).default(''),
+        description: z.string().max(500).default(""),
       }),
     )
     .max(10)
@@ -27,9 +27,9 @@ export function createPromptsRouter(): Router {
 
   // Daftar soal — guru/admin; filter by subject/language.
   router.get(
-    '/',
+    "/",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const subject = req.query.subject ? String(req.query.subject) : null;
       const language = req.query.language ? String(req.query.language) : null;
@@ -61,9 +61,9 @@ export function createPromptsRouter(): Router {
 
   // Buat soal.
   router.post(
-    '/',
+    "/",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const body = parseOrThrow(promptSchema, req.body);
       const { rows } = await pool.query(
@@ -79,20 +79,24 @@ export function createPromptsRouter(): Router {
           req.user!.id,
         ],
       );
-      res.status(201).json({ success: true, data: { id: Number(rows[0]!.id) } });
+      res
+        .status(201)
+        .json({ success: true, data: { id: Number(rows[0]!.id) } });
     }),
   );
 
   // Detail satu soal.
   router.get(
-    '/:id',
+    "/:id",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const id = Number(req.params.id ?? 0);
-      const { rows } = await pool.query(`SELECT * FROM prompts WHERE id = $1`, [id]);
+      const { rows } = await pool.query(`SELECT * FROM prompts WHERE id = $1`, [
+        id,
+      ]);
       const p = rows[0] as Record<string, unknown> | undefined;
-      if (!p) throw new AppError('NOT_FOUND', 'Soal tidak ditemukan', 404);
+      if (!p) throw new AppError("NOT_FOUND", "Soal tidak ditemukan", 404);
       res.json({
         success: true,
         data: {
@@ -111,13 +115,17 @@ export function createPromptsRouter(): Router {
 
   // Hapus soal.
   router.delete(
-    '/:id',
+    "/:id",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const id = Number(req.params.id ?? 0);
-      const { rows } = await pool.query(`DELETE FROM prompts WHERE id = $1 RETURNING id`, [id]);
-      if (!rows[0]) throw new AppError('NOT_FOUND', 'Soal tidak ditemukan', 404);
+      const { rows } = await pool.query(
+        `DELETE FROM prompts WHERE id = $1 RETURNING id`,
+        [id],
+      );
+      if (!rows[0])
+        throw new AppError("NOT_FOUND", "Soal tidak ditemukan", 404);
       res.json({ success: true, data: { id: Number(rows[0].id) } });
     }),
   );

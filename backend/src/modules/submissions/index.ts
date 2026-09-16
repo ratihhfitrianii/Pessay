@@ -1,12 +1,15 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { pool } from '../../lib/pg';
-import { requireAuth, requireRole } from '../../middleware/auth';
-import { AppError, asyncHandler, parseOrThrow } from '../../lib/errors';
+import { Router } from "express";
+import { z } from "zod";
+import { pool } from "../../lib/pg";
+import { requireAuth, requireRole } from "../../middleware/auth";
+import { AppError, asyncHandler, parseOrThrow } from "../../lib/errors";
 
 const createSchema = z.object({
   assignmentId: z.number().int().positive(),
-  body: z.string().min(1, 'Jawaban tidak boleh kosong').max(20000, 'Jawaban terlalu panjang (maks 20.000 karakter)'),
+  body: z
+    .string()
+    .min(1, "Jawaban tidak boleh kosong")
+    .max(20000, "Jawaban terlalu panjang (maks 20.000 karakter)"),
   answerImage: z.string().optional(), // base64 — untuk matematika/scan (disimpan sebagai metadata)
 });
 
@@ -19,7 +22,7 @@ export function createSubmissionsRouter(): Router {
   const router = Router();
 
   router.post(
-    '/submit',
+    "/submit",
     requireAuth,
     asyncHandler(async (req, res) => {
       assertCanSubmit(req.user!.role);
@@ -31,7 +34,11 @@ export function createSubmissionsRouter(): Router {
         [req.user!.id],
       );
       if (recent.length > 0) {
-        throw new AppError('RATE_LIMITED', 'Terlalu cepat mengirim. Tunggu 10 detik sebelum kirim lagi.', 429);
+        throw new AppError(
+          "RATE_LIMITED",
+          "Terlalu cepat mengirim. Tunggu 10 detik sebelum kirim lagi.",
+          429,
+        );
       }
 
       // Verifikasi assignment + enrollment siswa di kelasnya.
@@ -42,31 +49,51 @@ export function createSubmissionsRouter(): Router {
         [body.assignmentId, req.user!.id],
       );
       const assignment = asg[0] as
-        | { id: string; class_id: string; is_active: boolean; enrolled: string | null }
+        | {
+            id: string;
+            class_id: string;
+            is_active: boolean;
+            enrolled: string | null;
+          }
         | undefined;
-      if (!assignment) throw new AppError('NOT_FOUND', 'Ujian tidak ditemukan', 404);
-      if (!assignment.enrolled) throw new AppError('FORBIDDEN', 'Anda tidak terdaftar di kelas ujian ini', 403);
-      if (!assignment.is_active) throw new AppError('ASSIGNMENT_CLOSED', 'Ujian sudah ditutup', 403);
+      if (!assignment)
+        throw new AppError("NOT_FOUND", "Ujian tidak ditemukan", 404);
+      if (!assignment.enrolled)
+        throw new AppError(
+          "FORBIDDEN",
+          "Anda tidak terdaftar di kelas ujian ini",
+          403,
+        );
+      if (!assignment.is_active)
+        throw new AppError("ASSIGNMENT_CLOSED", "Ujian sudah ditutup", 403);
 
       const answerImage = body.answerImage ?? null;
       const { rows } = await pool.query(
         `INSERT INTO submissions (assignment_id, student_id, body, status)
          VALUES ($1, $2, $3, 'pending')
          RETURNING id`,
-        [body.assignmentId, req.user!.id, answerImage ? `[gambar] ${body.body}` : body.body],
+        [
+          body.assignmentId,
+          req.user!.id,
+          answerImage ? `[gambar] ${body.body}` : body.body,
+        ],
       );
       const id = Number(rows[0]!.id);
 
       res.status(202).json({
         success: true,
-        data: { id, status: 'pending', message: 'Jawaban diterima. Penilaian sedang diproses.' },
+        data: {
+          id,
+          status: "pending",
+          message: "Jawaban diterima. Penilaian sedang diproses.",
+        },
       });
     }),
   );
 
   // Polling hasil — siswa melihat status + skor + feedback.
   router.get(
-    '/my/:assignmentId',
+    "/my/:assignmentId",
     requireAuth,
     asyncHandler(async (req, res) => {
       const assignmentId = Number(req.params.assignmentId ?? 0);
@@ -86,7 +113,12 @@ export function createSubmissionsRouter(): Router {
             graded_at: string | null;
           }
         | undefined;
-      if (!sub) throw new AppError('NOT_FOUND', 'Belum ada kiriman untuk ujian ini', 404);
+      if (!sub)
+        throw new AppError(
+          "NOT_FOUND",
+          "Belum ada kiriman untuk ujian ini",
+          404,
+        );
 
       res.json({
         success: true,
@@ -105,9 +137,9 @@ export function createSubmissionsRouter(): Router {
 
   // Guru: daftar kiriman per assignment (dengan skor).
   router.get(
-    '/assignment/:assignmentId',
+    "/assignment/:assignmentId",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const assignmentId = Number(req.params.assignmentId ?? 0);
       const { rows } = await pool.query(
@@ -138,21 +170,29 @@ export function createSubmissionsRouter(): Router {
 
   // Guru: tinjau manual esai needs_review / unscorable → beri skor/ganti status.
   router.put(
-    '/:submissionId/review',
+    "/:submissionId/review",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const submissionId = Number(req.params.submissionId ?? 0);
       const body = parseOrThrow(
-        z.object({ status: z.enum(['graded', 'needs_review']), score: z.number().min(0).max(100).optional() }),
+        z.object({
+          status: z.enum(["graded", "needs_review"]),
+          score: z.number().min(0).max(100).optional(),
+        }),
         req.body,
       );
       const { rows } = await pool.query(
         `UPDATE submissions SET status = $2, score = COALESCE($3, score), graded_at = now()
          WHERE id = $1 RETURNING id, status, score`,
-        [submissionId, body.status, body.score === undefined ? null : body.score],
+        [
+          submissionId,
+          body.status,
+          body.score === undefined ? null : body.score,
+        ],
       );
-      if (!rows[0]) throw new AppError('NOT_FOUND', 'Kiriman tidak ditemukan', 404);
+      if (!rows[0])
+        throw new AppError("NOT_FOUND", "Kiriman tidak ditemukan", 404);
       res.json({
         success: true,
         data: {
@@ -168,7 +208,12 @@ export function createSubmissionsRouter(): Router {
 }
 
 function assertCanSubmit(role: string): void {
-  if (role !== 'siswa') throw new AppError('FORBIDDEN', 'Hanya siswa yang bisa mengirim jawaban', 403);
+  if (role !== "siswa")
+    throw new AppError(
+      "FORBIDDEN",
+      "Hanya siswa yang bisa mengirim jawaban",
+      403,
+    );
 }
 
 function safeParse(raw: string): unknown {

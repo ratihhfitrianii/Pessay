@@ -1,6 +1,6 @@
-import { pool } from '../lib/pg';
-import type { GradingAdapter } from './types';
-import { processSubmission } from './pipeline';
+import { pool } from "../lib/pg";
+import type { GradingAdapter } from "./types";
+import { processSubmission } from "./pipeline";
 
 /**
  * Batch grader — konsumen antrean DB.
@@ -39,18 +39,21 @@ export class BatchGrader {
       let processed = 0;
       let failed = 0;
       const queue = [...ids];
-      const workers = Array.from({ length: Math.min(this.maxConcurrency, queue.length) }, async () => {
-        while (queue.length > 0) {
-          const id = queue.shift();
-          if (id === undefined) break;
-          try {
-            await processSubmission(id, this.adapter);
-            processed++;
-          } catch {
-            failed++;
+      const workers = Array.from(
+        { length: Math.min(this.maxConcurrency, queue.length) },
+        async () => {
+          while (queue.length > 0) {
+            const id = queue.shift();
+            if (id === undefined) break;
+            try {
+              await processSubmission(id, this.adapter);
+              processed++;
+            } catch {
+              failed++;
+            }
           }
-        }
-      });
+        },
+      );
       await Promise.all(workers);
       return { processed, failed };
     } finally {
@@ -64,7 +67,7 @@ export class BatchGrader {
     this.timer = setInterval(() => {
       void this.tick().catch((err) => {
         // eslint-disable-next-line no-console
-        console.error('[grader] tick gagal:', err.message);
+        console.error("[grader] tick gagal:", err.message);
       });
     }, this.intervalMs);
     this.timer.unref?.();

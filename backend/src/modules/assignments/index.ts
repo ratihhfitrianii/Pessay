@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { pool } from '../../lib/pg';
-import { requireAuth, requireRole } from '../../middleware/auth';
-import { AppError, asyncHandler, parseOrThrow } from '../../lib/errors';
+import { Router } from "express";
+import { z } from "zod";
+import { pool } from "../../lib/pg";
+import { requireAuth, requireRole } from "../../middleware/auth";
+import { AppError, asyncHandler, parseOrThrow } from "../../lib/errors";
 
 const assignmentSchema = z.object({
   promptId: z.number().int().positive(),
@@ -17,25 +17,33 @@ export function createAssignmentsRouter(): Router {
 
   // Buat ujian (guru/admin).
   router.post(
-    '/',
+    "/",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const body = parseOrThrow(assignmentSchema, req.body);
       const { rows } = await pool.query(
         `INSERT INTO assignments (prompt_id, class_id, title, due_at, is_active)
          VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [body.promptId, body.classId, body.title, body.dueAt ?? null, body.isActive],
+        [
+          body.promptId,
+          body.classId,
+          body.title,
+          body.dueAt ?? null,
+          body.isActive,
+        ],
       );
-      res.status(201).json({ success: true, data: { id: Number(rows[0]!.id) } });
+      res
+        .status(201)
+        .json({ success: true, data: { id: Number(rows[0]!.id) } });
     }),
   );
 
   // Daftar ujian (guru: milik kelasnya; admin: semua).
   router.get(
-    '/',
+    "/",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const { rows } = await pool.query(
         `SELECT a.id, a.title, a.due_at, a.is_active, a.class_id, c.name AS class_name,
@@ -66,9 +74,9 @@ export function createAssignmentsRouter(): Router {
 
   // Ujian aktif untuk siswa (kelasnya, yang masih terbuka).
   router.get(
-    '/available',
+    "/available",
     requireAuth,
-    requireRole('siswa'),
+    requireRole("siswa"),
     asyncHandler(async (req, res) => {
       const { rows } = await pool.query(
         `SELECT a.id, a.title, a.due_at, a.is_active, c.name AS class_name,
@@ -101,9 +109,9 @@ export function createAssignmentsRouter(): Router {
 
   // Nonaktifkan / aktifkan ujian.
   router.patch(
-    '/:id',
+    "/:id",
     requireAuth,
-    requireRole('guru', 'admin'),
+    requireRole("guru", "admin"),
     asyncHandler(async (req, res) => {
       const id = Number(req.params.id ?? 0);
       const body = parseOrThrow(z.object({ isActive: z.boolean() }), req.body);
@@ -111,8 +119,12 @@ export function createAssignmentsRouter(): Router {
         `UPDATE assignments SET is_active = $2 WHERE id = $1 RETURNING id, is_active`,
         [id, body.isActive],
       );
-      if (!rows[0]) throw new AppError('NOT_FOUND', 'Ujian tidak ditemukan', 404);
-      res.json({ success: true, data: { id: Number(rows[0].id), isActive: rows[0].is_active } });
+      if (!rows[0])
+        throw new AppError("NOT_FOUND", "Ujian tidak ditemukan", 404);
+      res.json({
+        success: true,
+        data: { id: Number(rows[0].id), isActive: rows[0].is_active },
+      });
     }),
   );
 

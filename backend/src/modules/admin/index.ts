@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { pool } from '../../lib/pg';
-import { requireAuth, requireRole } from '../../middleware/auth';
-import { AppError, asyncHandler, parseOrThrow } from '../../lib/errors';
+import { Router } from "express";
+import { z } from "zod";
+import { pool } from "../../lib/pg";
+import { requireAuth, requireRole } from "../../middleware/auth";
+import { AppError, asyncHandler, parseOrThrow } from "../../lib/errors";
 
 /**
  * Admin: manajemen user (buat akun siswa/guru, aktif/nonaktif), kelas, enrollments.
@@ -12,9 +12,9 @@ export function createAdminRouter(): Router {
 
   // -- Classes ---------------------------------------------------------
   router.get(
-    '/classes',
+    "/classes",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (_req, res) => {
       const { rows } = await pool.query(
         `SELECT c.id, c.code, c.name, c.teacher_id, u.full_name AS teacher_name,
@@ -37,30 +37,41 @@ export function createAdminRouter(): Router {
   );
 
   router.post(
-    '/classes',
+    "/classes",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (req, res) => {
       const body = parseOrThrow(
-        z.object({ code: z.string().min(2).max(32), name: z.string().min(2).max(120), teacherId: z.number().int().positive().optional() }),
+        z.object({
+          code: z.string().min(2).max(32),
+          name: z.string().min(2).max(120),
+          teacherId: z.number().int().positive().optional(),
+        }),
         req.body,
       );
       const { rows } = await pool.query(
         `INSERT INTO classes (code, name, teacher_id) VALUES ($1, $2, $3) RETURNING id`,
         [body.code, body.name, body.teacherId ?? null],
       );
-      res.status(201).json({ success: true, data: { id: Number(rows[0]!.id) } });
+      res
+        .status(201)
+        .json({ success: true, data: { id: Number(rows[0]!.id) } });
     }),
   );
 
   // -- Enrollments -----------------------------------------------------
   router.post(
-    '/classes/:classId/enroll',
+    "/classes/:classId/enroll",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (req, res) => {
       const classId = Number(req.params.classId ?? 0);
-      const body = parseOrThrow(z.object({ studentIds: z.array(z.number().int().positive()).min(1).max(1000) }), req.body);
+      const body = parseOrThrow(
+        z.object({
+          studentIds: z.array(z.number().int().positive()).min(1).max(1000),
+        }),
+        req.body,
+      );
       let created = 0;
       for (const sid of body.studentIds) {
         const { rowCount } = await pool.query(
@@ -75,9 +86,9 @@ export function createAdminRouter(): Router {
 
   // -- Users -----------------------------------------------------------
   router.get(
-    '/users',
+    "/users",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (_req, res) => {
       const { rows } = await pool.query(
         `SELECT u.id, u.email, u.full_name, r.code AS role_code, u.is_active, u.created_at
@@ -99,58 +110,68 @@ export function createAdminRouter(): Router {
   );
 
   router.post(
-    '/users',
+    "/users",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (req, res) => {
       const body = parseOrThrow(
         z.object({
           email: z.string().email(),
           password: z.string().min(6).max(100),
           fullName: z.string().min(2).max(120),
-          role: z.enum(['guru', 'siswa']),
+          role: z.enum(["guru", "siswa"]),
         }),
         req.body,
       );
-      const bcrypt = (await import('bcryptjs')).default;
+      const bcrypt = (await import("bcryptjs")).default;
       const hash = bcrypt.hashSync(body.password, 12);
       const { rows } = await pool.query(
         `INSERT INTO users (email, password_hash, full_name, role_id)
          VALUES ($1, $2, $3, (SELECT id FROM roles WHERE code = $4)) RETURNING id`,
         [body.email, hash, body.fullName, body.role],
       );
-      res.status(201).json({ success: true, data: { id: Number(rows[0]!.id) } });
+      res
+        .status(201)
+        .json({ success: true, data: { id: Number(rows[0]!.id) } });
     }),
   );
 
   router.patch(
-    '/users/:id',
+    "/users/:id",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (req, res) => {
       const id = Number(req.params.id ?? 0);
       const body = parseOrThrow(
-        z.object({ fullName: z.string().min(2).max(120).optional(), isActive: z.boolean().optional() }),
+        z.object({
+          fullName: z.string().min(2).max(120).optional(),
+          isActive: z.boolean().optional(),
+        }),
         req.body,
       );
       const { rows } = await pool.query(
-              `UPDATE users SET full_name = COALESCE($2, full_name), is_active = COALESCE($3, is_active)
+        `UPDATE users SET full_name = COALESCE($2, full_name), is_active = COALESCE($3, is_active)
                WHERE id = $1 RETURNING id, is_active`,
-              [id, body.fullName ?? null, body.isActive === undefined ? null : body.isActive],
-            );
-            if (!rows[0]) throw new AppError('NOT_FOUND', 'User tidak ditemukan', 404);
-            res.json({
-              success: true,
-              data: { id: Number(rows[0].id), isActive: rows[0].is_active },
-            });
+        [
+          id,
+          body.fullName ?? null,
+          body.isActive === undefined ? null : body.isActive,
+        ],
+      );
+      if (!rows[0])
+        throw new AppError("NOT_FOUND", "User tidak ditemukan", 404);
+      res.json({
+        success: true,
+        data: { id: Number(rows[0].id), isActive: rows[0].is_active },
+      });
     }),
   );
 
   // -- Stats -----------------------------------------------------------
   router.get(
-    '/stats',
+    "/stats",
     requireAuth,
-    requireRole('admin'),
+    requireRole("admin"),
     asyncHandler(async (_req, res) => {
       const { rows } = await pool.query(
         `SELECT

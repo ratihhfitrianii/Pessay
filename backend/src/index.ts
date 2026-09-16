@@ -1,8 +1,8 @@
-import 'dotenv/config';
-import { createApp } from './app';
-import { pingDatabase } from './lib/pg';
-import { createGradingAdapter } from './grading/gemini';
-import { BatchGrader } from './grading/batch';
+import "dotenv/config";
+import { createApp } from "./app";
+import { pingDatabase } from "./lib/pg";
+import { createGradingAdapter } from "./grading/gemini";
+import { BatchGrader } from "./grading/batch";
 
 async function main(): Promise<void> {
   await pingDatabase();
@@ -15,11 +15,11 @@ async function main(): Promise<void> {
   });
 
   // Batch grader — hanya di proses server, tidak saat test.
-  if (process.env.NODE_ENV !== 'test') {
+  if (process.env.NODE_ENV !== "test") {
     const adapter = createGradingAdapter(
-      process.env.GRADING_MODE ?? 'mock',
-      process.env.GEMINI_API_KEY ?? '',
-      process.env.GEMINI_MODEL ?? 'gemini-2.0-flash',
+      process.env.GRADING_MODE ?? "mock",
+      process.env.GEMINI_API_KEY ?? "",
+      process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
     );
     const grader = new BatchGrader(
       adapter,
@@ -29,12 +29,14 @@ async function main(): Promise<void> {
     );
     grader.start();
     // eslint-disable-next-line no-console
-    console.log(`[pessay] batch grader berjalan (mode=${adapter.mode}, batch=${grader['batchSize']})`);
+    console.log(
+      `[pessay] batch grader berjalan (mode=${adapter.mode}, batch=${grader["batchSize"]})`,
+    );
   }
 }
 
 main().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('[pessay] gagal startup:', err);
+  console.error("[pessay] gagal startup:", err);
   process.exit(1);
 });

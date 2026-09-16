@@ -1,4 +1,4 @@
-import { Redis } from 'ioredis';
+import { Redis } from "ioredis";
 
 /**
  * Cache Redis opsional dengan graceful degradation.
@@ -14,10 +14,11 @@ function connect(): void {
       maxRetriesPerRequest: 3,
       enableOfflineQueue: true,
       lazyConnect: true,
-      retryStrategy: (times: number) => (times > 5 ? null : Math.min(times * 200, 2000)),
+      retryStrategy: (times: number) =>
+        times > 5 ? null : Math.min(times * 200, 2000),
     });
     redis = client;
-    redis.on('error', () => {
+    redis.on("error", () => {
       redis = null;
     });
     void redis.connect().catch(() => {
@@ -41,10 +42,14 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+export async function cacheSet(
+  key: string,
+  value: unknown,
+  ttlSeconds: number,
+): Promise<void> {
   if (!redis) return;
   try {
-    await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
   } catch {
     /* no-op */
   }
