@@ -1,0 +1,61 @@
+# Render Blueprint — deploy satu klik untuk backend Pessay
+# 1. Buat database PostgreSQL di Neon (https://neon.tech) → salin connection string
+# 2. Isi DATABASE_URL di bawah dengan string Neon Anda
+# 3. Deploy: dashboard Render → "New +" → "Blueprint" → pilih repo ini
+#    (Render otomatis membaca render.yaml)
+#
+# Catatan: pakai service "web" (bukan worker) karena backend ini menggabungkan
+# API + batch grader dalam satu proses. Health check memakai /api/v1/health/ready.
+
+services:
+  - type: web
+    name: pessay-backend
+    runtime: node
+    repo: https://github.com/ratihhfitrianii/Pessay
+    branch: dev
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npx node-pg-migrate up -f database.json && node dist/index.js
+    healthCheckPath: /api/v1/health/ready
+    autoDeploy: true
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # Isi dengan connection string Neon Anda (wajib)
+      # Format: postgres://user:password@host/dbname?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_POOL_MAX
+        value: "20"
+      # Ganti dengan secret panjang acak (min 16 char). Jangan commit nilai asli.
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      # REDIS_URL opsional — tanpa Redis semua operasi cache no-op (aman).
+      # Isi jika sudah punya Upstash Redis: rediss://...
+      - key: REDIS_URL
+        sync: false
+      # Origin frontend Vercel (tanpa trailing slash). Isi sebelum dipakai.
+      - key: CORS_ORIGIN
+        sync: false
+      # GRADING_MODE: mock = tanpa API key (uji), real = pakai Gemini
+      - key: GRADING_MODE
+        value: mock
+      # Isi dengan Gemini API key (BYOK) jika mode real
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: GRADING_BATCH_SIZE
+        value: "10"
+      - key: GRADING_INTERVAL_MS
+        value: "10000"
+      - key: GRADING_MAX_CONCURRENCY
+        value: "3"
+      # Rate limit submit siswa: 1 submit / 10 detik
+      - key: RATE_LIMIT_SUBMIT_PER_10S
+        value: "1"
